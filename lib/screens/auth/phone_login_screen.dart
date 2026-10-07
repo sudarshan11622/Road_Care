@@ -32,7 +32,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Track your reports')),
-      body: Padding(
+      body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
         child: Form(
           key: formKey,
@@ -78,7 +79,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   return null;
                 },
               ),
-              const Spacer(),
+              const SizedBox(height: 28),
               PrimaryButton(label: 'Next', onPressed: next),
               const SizedBox(height: 10),
               const Center(

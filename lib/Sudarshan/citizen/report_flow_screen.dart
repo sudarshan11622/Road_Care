@@ -38,10 +38,10 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
     super.dispose();
   }
 
-  Future<void> pickPhoto() async {
+  Future<void> pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 80,
       maxWidth: 1600,
     );
@@ -185,7 +185,7 @@ class _StepFrame extends StatelessWidget {
 }
 
 class _PhotoStep extends StatelessWidget {
-  final VoidCallback onPick;
+  final ValueChanged<ImageSource> onPick;
   final VoidCallback onNext;
   final String? imagePath;
 
@@ -205,41 +205,65 @@ class _PhotoStep extends StatelessWidget {
       child: Column(
         children: [
           Expanded(
-            child: GestureDetector(
-              onTap: onPick,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: AppTheme.border),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: imagePath == null
-                    ? const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo_outlined,
-                              size: 34, color: AppTheme.blue),
-                          SizedBox(height: 10),
-                          Text('Tap to choose a photo'),
-                          SizedBox(height: 3),
-                          Text(
-                            'Gallery or camera can be connected here',
-                            style:
-                                TextStyle(color: AppTheme.muted, fontSize: 12),
-                          ),
-                        ],
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: reportImage(
-                          imagePath!,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
-                      ),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppTheme.border),
+                borderRadius: BorderRadius.circular(16),
               ),
+              child: imagePath == null
+                  ? const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_outlined,
+                            size: 34, color: AppTheme.blue),
+                        SizedBox(height: 10),
+                        Text('Add a photo of the problem'),
+                        SizedBox(height: 3),
+                        Text(
+                          'Take a live picture or choose one from your gallery.',
+                          style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                        ),
+                      ],
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: reportImage(
+                        imagePath!,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => onPick(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Take photo'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => onPick(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Gallery'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ),
+            ],
           ),
           if (imagePath == null)
             const Padding(

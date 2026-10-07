@@ -11,7 +11,6 @@ class AppState extends ChangeNotifier {
   bool citizenLoggedIn = false;
   bool adminLoggedIn = false;
   bool isDarkMode = false;
-  bool emailNotifications = true;
   bool requireLocationConfirmation = true;
   String organizationName = 'RoadCare Municipal Services';
   String serviceArea = 'Central District';
@@ -108,7 +107,6 @@ class AppState extends ChangeNotifier {
     organizationName =
         _prefs?.getString('organizationName') ?? 'RoadCare Municipal Services';
     serviceArea = _prefs?.getString('serviceArea') ?? 'Central District';
-    emailNotifications = _prefs?.getBool('emailNotifications') ?? true;
     requireLocationConfirmation =
         _prefs?.getBool('requireLocationConfirmation') ?? true;
     phone = _prefs?.getString('phone') ?? '';
@@ -164,20 +162,13 @@ class AppState extends ChangeNotifier {
   Future<void> saveAdminSettings({
     required String organizationName,
     required String serviceArea,
-    required bool emailNotifications,
-    required bool requireLocationConfirmation,
   }) async {
     this.organizationName = organizationName.trim();
     this.serviceArea = serviceArea.trim();
-    this.emailNotifications = emailNotifications;
-    this.requireLocationConfirmation = requireLocationConfirmation;
+    this.requireLocationConfirmation = true;
     await _prefs?.setString('organizationName', this.organizationName);
     await _prefs?.setString('serviceArea', this.serviceArea);
-    await _prefs?.setBool('emailNotifications', emailNotifications);
-    await _prefs?.setBool(
-      'requireLocationConfirmation',
-      requireLocationConfirmation,
-    );
+    await _prefs?.setBool('requireLocationConfirmation', true);
     notifyListeners();
   }
 
@@ -325,6 +316,10 @@ class AppState extends ChangeNotifier {
       await _prefs?.setString('phone', phone);
     }
     await _saveReports();
+    if (isTrackable && normalizedPhone.isNotEmpty) {
+      _addReportNotification(reports.first, ReportStatus.submitted);
+      await _saveNotifications();
+    }
     notifyListeners();
   }
 
@@ -332,22 +327,11 @@ class AppState extends ChangeNotifier {
     final index = reports.indexWhere((r) => r.id == id);
     if (index == -1) return;
     final previous = reports[index];
+    if (previous.status == status) return;
     reports[index] = reports[index].copyWith(status: status);
     await _saveReports();
-    if (status == ReportStatus.resolved &&
-        previous.status != ReportStatus.resolved &&
-        previous.isTrackable &&
-        previous.citizenPhone.isNotEmpty) {
-      notifications.add(
-        AppNotification(
-          reportId: previous.id,
-          phone: previous.citizenPhone,
-          title: 'Your submitted problems are solved',
-          body:
-              'Your submitted problems are solved. Feel free to submit other problems seen in your localities.',
-          createdAt: DateTime.now(),
-        ),
-      );
+    if (previous.isTrackable && previous.citizenPhone.isNotEmpty) {
+      _addReportNotification(reports[index], status);
       await _saveNotifications();
     }
     notifyListeners();
@@ -356,8 +340,36 @@ class AppState extends ChangeNotifier {
   Future<void> assignReport(String id, String team) async {
     final index = reports.indexWhere((report) => report.id == id);
     if (index == -1) return;
-    reports[index] = reports[index].copyWith(assignedTeam: team);
+    final previous = reports[index];
+    if (previous.assignedTeam == team) return;
+    final newStatus = team != 'Unassigned' &&
+            (previous.status == ReportStatus.submitted ||
+                previous.status == ReportStatus.underReview)
+        ? ReportStatus.assigned
+        : previous.status;
+    reports[index] = previous.copyWith(
+      assignedTeam: team,
+      status: newStatus,
+    );
     await _saveReports();
+    if (team != 'Unassigned' &&
+        previous.isTrackable &&
+        previous.citizenPhone.isNotEmpty) {
+      _addReportNotification(reports[index], ReportStatus.assigned);
+      await _saveNotifications();
+    }
     notifyListeners();
+  }
+
+  void _addReportNotification(Report report, ReportStatus status) {
+    notifications.add(
+      AppNotification(
+        reportId: report.id,
+        phone: report.citizenPhone,
+        title: status.notificationTitle,
+        body: status.notificationBody,
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 }

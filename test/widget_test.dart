@@ -88,6 +88,48 @@ void main() {
     expect(find.byType(LayoutBuilder), findsWidgets);
   });
 
+  testWidgets('report flow offers camera and gallery photo options',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Report a problem'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Take photo'), findsOneWidget);
+    expect(find.text('Gallery'), findsOneWidget);
+  });
+
+  testWidgets('phone sign-in form scrolls above the on-screen keyboard',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpAndSettle();
+    });
+
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sign In').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '9876543210');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Next'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows a use my location action in the report flow',
       (tester) async {
     SharedPreferences.setMockInitialValues({});

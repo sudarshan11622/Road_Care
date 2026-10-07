@@ -4,6 +4,8 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>RoadCare uses your location to place reports accurately.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>RoadCare uses the camera to take photos of reported road problems.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>RoadCare lets you attach a photo to a road report.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -1,8 +1,11 @@
 enum ReportStatus {
   submitted,
   underReview,
+  assigned,
   inProgress,
-  resolved;
+  resolved,
+  closed,
+  rejected;
 
   String get label {
     switch (this) {
@@ -10,10 +13,54 @@ enum ReportStatus {
         return 'Submitted';
       case ReportStatus.underReview:
         return 'Under review';
+      case ReportStatus.assigned:
+        return 'Assigned';
       case ReportStatus.inProgress:
         return 'In progress';
       case ReportStatus.resolved:
         return 'Resolved';
+      case ReportStatus.closed:
+        return 'Closed';
+      case ReportStatus.rejected:
+        return 'Rejected';
+    }
+  }
+
+  String get notificationTitle {
+    switch (this) {
+      case ReportStatus.submitted:
+        return 'Report submitted';
+      case ReportStatus.underReview:
+        return 'Report under review';
+      case ReportStatus.assigned:
+        return 'Report assigned';
+      case ReportStatus.inProgress:
+        return 'Work in progress';
+      case ReportStatus.resolved:
+        return 'Report resolved';
+      case ReportStatus.closed:
+        return 'Report closed';
+      case ReportStatus.rejected:
+        return 'Report rejected';
+    }
+  }
+
+  String get notificationBody {
+    switch (this) {
+      case ReportStatus.submitted:
+        return 'Your report has been submitted successfully.';
+      case ReportStatus.underReview:
+        return 'Your report is currently being reviewed by the RoadCare team.';
+      case ReportStatus.assigned:
+        return 'Your report has been assigned to the responsible team.';
+      case ReportStatus.inProgress:
+        return 'Work has started on the problem you reported.';
+      case ReportStatus.resolved:
+        return 'The problem you reported has been resolved.';
+      case ReportStatus.closed:
+        return 'Your report has been closed. Thank you for using RoadCare.';
+      case ReportStatus.rejected:
+        return 'Your report could not be accepted. Tap to view the reason.';
     }
   }
 }

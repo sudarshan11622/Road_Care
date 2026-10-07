@@ -168,6 +168,7 @@ Color statusColor(String status) {
     case 'In progress':
       return AppTheme.blue;
     case 'Under review':
+    case 'Assigned':
       return AppTheme.orange;
     default:
       return AppTheme.muted;

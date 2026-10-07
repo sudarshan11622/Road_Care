@@ -91,8 +91,6 @@ void main() {
       await state.saveAdminSettings(
         organizationName: 'RoadCare City Office',
         serviceArea: 'North District',
-        emailNotifications: false,
-        requireLocationConfirmation: false,
       );
 
       final restored = AppState();
@@ -110,11 +108,9 @@ void main() {
       );
       expect(restored.organizationName, 'RoadCare City Office');
       expect(restored.serviceArea, 'North District');
-      expect(restored.emailNotifications, isFalse);
-      expect(restored.requireLocationConfirmation, isFalse);
     });
 
-    test('notifies the submitting citizen when their report is resolved',
+    test('creates a separate notification for each report status update',
         () async {
       SharedPreferences.setMockInitialValues({});
 
@@ -127,27 +123,74 @@ void main() {
         location: 'North Road',
         description: 'Debris is blocking the lane.',
       );
-      final report = state.reports.first;
+      final firstReport = state.reports.first;
+      await state.addReport(
+        title: 'Damaged drain',
+        type: 'Drainage',
+        location: 'South Road',
+        description: 'Drain cover is missing.',
+      );
+      final secondReport = state.reports.first;
 
-      await state.updateReportStatus(report.id, ReportStatus.inProgress);
-      await state.updateReportStatus(report.id, ReportStatus.resolved);
-      await state.updateReportStatus(report.id, ReportStatus.resolved);
+      await state.updateReportStatus(firstReport.id, ReportStatus.underReview);
+      await state.assignReport(firstReport.id, 'Road maintenance');
+      await state.updateReportStatus(firstReport.id, ReportStatus.inProgress);
+      await state.updateReportStatus(firstReport.id, ReportStatus.resolved);
+      await state.updateReportStatus(firstReport.id, ReportStatus.resolved);
+      await state.updateReportStatus(secondReport.id, ReportStatus.closed);
 
-      expect(report.citizenPhone, '9876543210');
-      expect(state.citizenNotifications, hasLength(1));
-      expect(state.citizenNotifications.single.reportId, report.id);
+      expect(state.citizenNotifications, hasLength(7));
       expect(
-        state.citizenNotifications.single.body,
-        'Your submitted problems are solved. Feel free to submit other problems seen in your localities.',
+        state.citizenNotifications
+            .where((notification) => notification.reportId == firstReport.id)
+            .map((notification) => notification.body),
+        unorderedEquals([
+          'The problem you reported has been resolved.',
+          'Work has started on the problem you reported.',
+          'Your report has been assigned to the responsible team.',
+          'Your report is currently being reviewed by the RoadCare team.',
+          'Your report has been submitted successfully.',
+        ]),
+      );
+      expect(
+        state.citizenNotifications
+            .where((notification) => notification.reportId == secondReport.id)
+            .map((notification) => notification.body),
+        unorderedEquals([
+          'Your report has been closed. Thank you for using RoadCare.',
+          'Your report has been submitted successfully.',
+        ]),
       );
 
       final restored = AppState();
       await restored.load();
       await restored.loginCitizen('9876543210');
-      expect(restored.citizenNotifications, hasLength(1));
+      expect(restored.citizenNotifications, hasLength(7));
       await restored.logoutCitizen();
       await restored.loginCitizen('1111111111');
       expect(restored.citizenNotifications, isEmpty);
+    });
+
+    test('uses the configured rejected status notification text', () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final state = AppState();
+      await state.load();
+      await state.loginCitizen('9876543210');
+      await state.addReport(
+        title: 'Unsafe sign',
+        type: 'Traffic sign',
+        location: 'Market Road',
+        description: 'The sign is damaged.',
+      );
+      final report = state.reports.first;
+
+      await state.updateReportStatus(report.id, ReportStatus.rejected);
+
+      expect(
+        state.citizenNotifications.first.body,
+        'Your report could not be accepted. Tap to view the reason.',
+      );
     });
 
     test('does not notify anonymous reports that are not trackable', () async {

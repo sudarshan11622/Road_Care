@@ -44,8 +44,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     await state.saveAdminSettings(
       organizationName: _organizationController.text,
       serviceArea: _serviceAreaController.text,
-      emailNotifications: state.emailNotifications,
-      requireLocationConfirmation: state.requireLocationConfirmation,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,37 +124,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: Icon(Icons.notifications_none),
-                  title: Text('Email notifications'),
-                  trailing: Switch(
-                    value: state.emailNotifications,
-                    onChanged: (value) async {
-                      await state.saveAdminSettings(
-                        organizationName: _organizationController.text,
-                        serviceArea: _serviceAreaController.text,
-                        emailNotifications: value,
-                        requireLocationConfirmation:
-                            state.requireLocationConfirmation,
-                      );
-                    },
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.location_on_outlined),
-                  title: Text('Require location confirmation'),
-                  trailing: Switch(
-                    value: state.requireLocationConfirmation,
-                    onChanged: (value) async {
-                      await state.saveAdminSettings(
-                        organizationName: _organizationController.text,
-                        serviceArea: _serviceAreaController.text,
-                        emailNotifications: state.emailNotifications,
-                        requireLocationConfirmation: value,
-                      );
-                    },
-                  ),
-                ),
                 ListTile(
                   leading: const Icon(Icons.logout, color: AppTheme.red),
                   title: const Text('Sign out',
