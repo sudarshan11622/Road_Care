@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../theme/app_theme.dart';
+import 'citizen_report_detail_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -49,6 +50,28 @@ class NotificationsScreen extends StatelessWidget {
                     '${notification.body}\nReport ID: ${notification.reportId}',
                 time: MaterialLocalizations.of(context)
                     .formatMediumDate(notification.createdAt),
+                onTap: () {
+                  final matchingReports = state.citizenReports.where(
+                    (report) => report.id == notification.reportId,
+                  );
+                  if (matchingReports.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('The report details are no longer available.'),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => CitizenReportDetailScreen(
+                        report: matchingReports.first,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
         ],
@@ -61,20 +84,24 @@ class _Notice extends StatelessWidget {
   final String title;
   final String body;
   final String time;
+  final VoidCallback onTap;
 
   const _Notice({
     required this.title,
     required this.body,
     required this.time,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
+        onTap: onTap,
         leading: CircleAvatar(
           backgroundColor: AppTheme.blue.withValues(alpha: .08),
-          child: const Icon(Icons.check_circle_outline, color: AppTheme.green),
+          child: const Icon(Icons.notifications_active_outlined,
+              color: AppTheme.green),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Padding(

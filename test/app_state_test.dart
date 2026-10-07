@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roadcare/models/report.dart';
@@ -7,6 +9,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AppState session restoration', () {
+    test('does not create a report without a location', () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final state = AppState();
+      await state.load();
+
+      await expectLater(
+        state.addReport(
+          title: 'Road issue',
+          type: 'Pothole',
+          location: '  ',
+          description: 'Needs repair',
+        ),
+        throwsArgumentError,
+      );
+      expect(state.reports, hasLength(3));
+    });
+
     test('restores a saved citizen session to the citizen home', () async {
       SharedPreferences.setMockInitialValues({
         'citizenLoggedIn': true,
@@ -43,6 +63,75 @@ void main() {
       expect(state.isDarkMode, isTrue);
       await state.setDarkMode(false);
       expect(state.isDarkMode, isFalse);
+    });
+
+    test('restores only terminal status notifications', () async {
+      SharedPreferences.setMockInitialValues({
+        'notifications': jsonEncode([
+          {
+            'reportId': 'RC-1',
+            'phone': '9876543210',
+            'title': 'Report under review',
+            'body': 'Review update',
+            'createdAt': DateTime(2026, 10, 7).toIso8601String(),
+          },
+          {
+            'reportId': 'RC-2',
+            'phone': '9876543210',
+            'title': 'Report resolved',
+            'body': 'Resolved update',
+            'createdAt': DateTime(2026, 10, 7).toIso8601String(),
+          },
+        ]),
+      });
+
+      final state = AppState();
+      await state.load();
+
+      expect(state.notifications, hasLength(1));
+      expect(state.notifications.single.title, 'Report resolved');
+    });
+
+    test('marks notifications read for the current citizen and persists it',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final state = AppState();
+      await state.load();
+      await state.loginCitizen('9876543210');
+      await state.addReport(
+        title: 'First problem',
+        type: 'Pothole',
+        location: 'North Road',
+        description: 'Needs repair.',
+      );
+      final firstReport = state.reports.first;
+      await state.addReport(
+        title: 'Second problem',
+        type: 'Drainage',
+        location: 'South Road',
+        description: 'Drain cover is missing.',
+      );
+      final secondReport = state.reports.first;
+
+      await state.updateReportStatus(firstReport.id, ReportStatus.resolved);
+      await state.updateReportStatus(secondReport.id, ReportStatus.rejected,
+          rejectionReason: 'Duplicate report.');
+
+      expect(state.citizenUnreadNotificationCount, 2);
+      await state.markCitizenNotificationsRead();
+      expect(state.citizenUnreadNotificationCount, 0);
+      expect(state.citizenNotifications.every((notification) => notification.isRead),
+          isTrue);
+
+      final restored = AppState();
+      await restored.load();
+      await restored.loginCitizen('9876543210');
+      expect(restored.citizenUnreadNotificationCount, 0);
+
+      await restored.logoutCitizen();
+      await restored.loginCitizen('1111111111');
+      expect(restored.citizenUnreadNotificationCount, 0);
     });
 
     test('persists profile details and updates only that citizen reports',
@@ -110,7 +199,7 @@ void main() {
       expect(restored.serviceArea, 'North District');
     });
 
-    test('creates a separate notification for each report status update',
+    test('notifies separately per report only for resolved or rejected status',
         () async {
       SharedPreferences.setMockInitialValues({});
 
@@ -138,34 +227,42 @@ void main() {
       await state.updateReportStatus(firstReport.id, ReportStatus.resolved);
       await state.updateReportStatus(firstReport.id, ReportStatus.resolved);
       await state.updateReportStatus(secondReport.id, ReportStatus.closed);
+      await state.updateReportStatus(
+        secondReport.id,
+        ReportStatus.rejected,
+        rejectionReason: 'The location is outside the service area.',
+      );
 
-      expect(state.citizenNotifications, hasLength(7));
+      expect(state.citizenNotifications, hasLength(2));
       expect(
         state.citizenNotifications
             .where((notification) => notification.reportId == firstReport.id)
             .map((notification) => notification.body),
-        unorderedEquals([
-          'The problem you reported has been resolved.',
-          'Work has started on the problem you reported.',
-          'Your report has been assigned to the responsible team.',
-          'Your report is currently being reviewed by the RoadCare team.',
-          'Your report has been submitted successfully.',
-        ]),
+        ['The problem you reported has been resolved.'],
       );
       expect(
         state.citizenNotifications
             .where((notification) => notification.reportId == secondReport.id)
             .map((notification) => notification.body),
-        unorderedEquals([
-          'Your report has been closed. Thank you for using RoadCare.',
-          'Your report has been submitted successfully.',
-        ]),
+        ['Your report could not be accepted. Tap to view the reason.'],
+      );
+      expect(
+        state.reports
+            .singleWhere((report) => report.id == secondReport.id)
+            .rejectionReason,
+        'The location is outside the service area.',
       );
 
       final restored = AppState();
       await restored.load();
       await restored.loginCitizen('9876543210');
-      expect(restored.citizenNotifications, hasLength(7));
+      expect(restored.citizenNotifications, hasLength(2));
+      expect(
+        restored.reports
+            .singleWhere((report) => report.id == secondReport.id)
+            .rejectionReason,
+        'The location is outside the service area.',
+      );
       await restored.logoutCitizen();
       await restored.loginCitizen('1111111111');
       expect(restored.citizenNotifications, isEmpty);
@@ -185,12 +282,46 @@ void main() {
       );
       final report = state.reports.first;
 
-      await state.updateReportStatus(report.id, ReportStatus.rejected);
+      await state.updateReportStatus(
+        report.id,
+        ReportStatus.rejected,
+        rejectionReason: 'The report does not include a road issue.',
+      );
 
       expect(
-        state.citizenNotifications.first.body,
+        state.citizenNotifications
+            .singleWhere(
+              (notification) =>
+                  notification.body ==
+                  'Your report could not be accepted. Tap to view the reason.',
+            )
+            .body,
         'Your report could not be accepted. Tap to view the reason.',
       );
+    });
+
+    test('rejecting a report requires a reason and does not update without it',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final state = AppState();
+      await state.load();
+      await state.loginCitizen('9876543210');
+      await state.addReport(
+        title: 'Unsafe sign',
+        type: 'Traffic sign',
+        location: 'Market Road',
+        description: 'The sign is damaged.',
+      );
+      final report = state.reports.first;
+
+      await expectLater(
+        state.updateReportStatus(report.id, ReportStatus.rejected),
+        throwsArgumentError,
+      );
+
+      expect(state.reports.first.status, ReportStatus.submitted);
+      expect(state.citizenNotifications, isEmpty);
     });
 
     test('does not notify anonymous reports that are not trackable', () async {

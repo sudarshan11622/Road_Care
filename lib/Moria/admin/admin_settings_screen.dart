@@ -125,6 +125,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.dark_mode_outlined),
+                  title: const Text('Dark mode'),
+                  trailing: Switch(
+                    value: state.isDarkMode,
+                    onChanged: state.setDarkMode,
+                  ),
+                ),
+                ListTile(
                   leading: const Icon(Icons.logout, color: AppTheme.red),
                   title: const Text('Sign out',
                       style: TextStyle(color: AppTheme.red)),

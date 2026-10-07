@@ -209,11 +209,6 @@ class ProfileScreen extends StatelessWidget {
                   title: Text('Notifications'),
                   trailing: Switch(value: true, onChanged: null),
                 ),
-                const ListTile(
-                  leading: Icon(Icons.location_on_outlined),
-                  title: Text('Location access'),
-                  trailing: Switch(value: true, onChanged: null),
-                ),
                 ListTile(
                   leading: const Icon(Icons.dark_mode_outlined),
                   title: const Text('Dark mode'),

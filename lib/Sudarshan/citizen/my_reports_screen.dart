@@ -4,6 +4,7 @@ import '../../models/report.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/report_image.dart';
+import 'citizen_report_detail_screen.dart';
 
 class MyReportsScreen extends StatefulWidget {
   const MyReportsScreen({super.key});
@@ -73,35 +74,49 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(11),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: report.imagePath != null
-                ? reportImage(report.imagePath!, width: 64, height: 64)
-                  : Container(width: 64, height: 64, color: AppTheme.surface),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(report.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(report.id,
-                      style:
-                          const TextStyle(fontSize: 11, color: AppTheme.muted)),
-                  const SizedBox(height: 6),
-                  StatusPill(
-                      label: report.status.label,
-                      color: statusColor(report.status.label)),
-                ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CitizenReportDetailScreen(report: report),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(11),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: report.imagePath != null
+                    ? reportImage(report.imagePath!, width: 64, height: 64)
+                    : Container(
+                        width: 64,
+                        height: 64,
+                        color: AppTheme.surface,
+                      ),
               ),
-            ),
-          ],
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(report.title,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(report.id,
+                        style: const TextStyle(
+                            fontSize: 11, color: AppTheme.muted)),
+                    const SizedBox(height: 6),
+                    StatusPill(
+                        label: report.status.label,
+                        color: statusColor(report.status.label)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.muted),
+            ],
+          ),
         ),
       ),
     );

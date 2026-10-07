@@ -4,6 +4,7 @@ class AppNotification {
   final String title;
   final String body;
   final DateTime createdAt;
+  final bool isRead;
 
   const AppNotification({
     required this.reportId,
@@ -11,6 +12,7 @@ class AppNotification {
     required this.title,
     required this.body,
     required this.createdAt,
+    this.isRead = false,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class AppNotification {
       title: json['title'] as String,
       body: json['body'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      isRead: json['isRead'] as bool? ?? false,
     );
   }
 
@@ -29,5 +32,17 @@ class AppNotification {
         'title': title,
         'body': body,
         'createdAt': createdAt.toIso8601String(),
+        'isRead': isRead,
       };
+
+  AppNotification copyWith({bool? isRead}) {
+    return AppNotification(
+      reportId: reportId,
+      phone: phone,
+      title: title,
+      body: body,
+      createdAt: createdAt,
+      isRead: isRead ?? this.isRead,
+    );
+  }
 }

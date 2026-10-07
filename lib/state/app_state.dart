@@ -11,7 +11,6 @@ class AppState extends ChangeNotifier {
   bool citizenLoggedIn = false;
   bool adminLoggedIn = false;
   bool isDarkMode = false;
-  bool requireLocationConfirmation = true;
   String organizationName = 'RoadCare Municipal Services';
   String serviceArea = 'Central District';
   String citizenName = 'RoadCare Citizen';
@@ -99,6 +98,26 @@ class AppState extends ChangeNotifier {
       .toList()
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
+  int get citizenUnreadNotificationCount => citizenNotifications
+      .where((notification) => !notification.isRead)
+      .length;
+
+  Future<void> markCitizenNotificationsRead() async {
+    final currentPhone = phone;
+    var updated = false;
+    for (var index = 0; index < notifications.length; index++) {
+      final notification = notifications[index];
+      if (notification.phone == currentPhone && !notification.isRead) {
+        notifications[index] = notification.copyWith(isRead: true);
+        updated = true;
+      }
+    }
+    if (!updated) return;
+
+    notifyListeners();
+    await _saveNotifications();
+  }
+
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
     citizenLoggedIn = _prefs?.getBool('citizenLoggedIn') ?? false;
@@ -107,8 +126,6 @@ class AppState extends ChangeNotifier {
     organizationName =
         _prefs?.getString('organizationName') ?? 'RoadCare Municipal Services';
     serviceArea = _prefs?.getString('serviceArea') ?? 'Central District';
-    requireLocationConfirmation =
-        _prefs?.getBool('requireLocationConfirmation') ?? true;
     phone = _prefs?.getString('phone') ?? '';
     citizenName = _prefs?.getString('citizenName_$phone') ?? 'RoadCare Citizen';
     citizenEmail = _prefs?.getString('citizenEmail_$phone') ?? '';
@@ -144,6 +161,16 @@ class AppState extends ChangeNotifier {
               ),
             ),
           );
+        final originalCount = notifications.length;
+        notifications.removeWhere(
+          (notification) =>
+              notification.title != 'Report resolved' &&
+              notification.title != 'Report rejected' &&
+              notification.title != 'Your submitted problems are solved',
+        );
+        if (notifications.length != originalCount) {
+          await _saveNotifications();
+        }
       } on FormatException {
         await _prefs?.remove('notifications');
       } on TypeError {
@@ -165,10 +192,8 @@ class AppState extends ChangeNotifier {
   }) async {
     this.organizationName = organizationName.trim();
     this.serviceArea = serviceArea.trim();
-    this.requireLocationConfirmation = true;
     await _prefs?.setString('organizationName', this.organizationName);
     await _prefs?.setString('serviceArea', this.serviceArea);
-    await _prefs?.setBool('requireLocationConfirmation', true);
     notifyListeners();
   }
 
@@ -189,8 +214,7 @@ class AppState extends ChangeNotifier {
   Future<void> loginCitizen(String value) async {
     phone = value.replaceAll(RegExp(r'\D'), '');
     citizenLoggedIn = true;
-    citizenName =
-        _prefs?.getString('citizenName_$phone') ?? 'RoadCare Citizen';
+    citizenName = _prefs?.getString('citizenName_$phone') ?? 'RoadCare Citizen';
     citizenEmail = _prefs?.getString('citizenEmail_$phone') ?? '';
     citizenAddress = _prefs?.getString('citizenAddress_$phone') ?? '';
     citizenProfileImage = _prefs?.getString('citizenProfileImage_$phone');
@@ -292,8 +316,16 @@ class AppState extends ChangeNotifier {
     String? imagePath,
     String? phoneNumber,
   }) async {
+    if (location.trim().isEmpty) {
+      throw ArgumentError.value(
+        location,
+        'location',
+        'A precise location is required to submit a report.',
+      );
+    }
     final id = 'RC-${1050 + reports.length}';
-    final normalizedPhone = (phoneNumber ?? phone).replaceAll(RegExp(r'\D'), '');
+    final normalizedPhone =
+        (phoneNumber ?? phone).replaceAll(RegExp(r'\D'), '');
     final isTrackable = citizenLoggedIn || normalizedPhone.isNotEmpty;
     reports.insert(
       0,
@@ -316,21 +348,35 @@ class AppState extends ChangeNotifier {
       await _prefs?.setString('phone', phone);
     }
     await _saveReports();
-    if (isTrackable && normalizedPhone.isNotEmpty) {
-      _addReportNotification(reports.first, ReportStatus.submitted);
-      await _saveNotifications();
-    }
     notifyListeners();
   }
 
-  Future<void> updateReportStatus(String id, ReportStatus status) async {
+  Future<void> updateReportStatus(
+    String id,
+    ReportStatus status, {
+    String? rejectionReason,
+  }) async {
     final index = reports.indexWhere((r) => r.id == id);
     if (index == -1) return;
     final previous = reports[index];
     if (previous.status == status) return;
-    reports[index] = reports[index].copyWith(status: status);
+    if (status == ReportStatus.rejected &&
+        (rejectionReason == null || rejectionReason.trim().isEmpty)) {
+      throw ArgumentError.value(
+        rejectionReason,
+        'rejectionReason',
+        'A rejection reason is required.',
+      );
+    }
+    reports[index] = previous.copyWith(
+      status: status,
+      rejectionReason:
+          status == ReportStatus.rejected ? rejectionReason!.trim() : null,
+    );
     await _saveReports();
-    if (previous.isTrackable && previous.citizenPhone.isNotEmpty) {
+    if ((status == ReportStatus.resolved || status == ReportStatus.rejected) &&
+        previous.isTrackable &&
+        previous.citizenPhone.isNotEmpty) {
       _addReportNotification(reports[index], status);
       await _saveNotifications();
     }
@@ -352,12 +398,6 @@ class AppState extends ChangeNotifier {
       status: newStatus,
     );
     await _saveReports();
-    if (team != 'Unassigned' &&
-        previous.isTrackable &&
-        previous.citizenPhone.isNotEmpty) {
-      _addReportNotification(reports[index], ReportStatus.assigned);
-      await _saveNotifications();
-    }
     notifyListeners();
   }
 

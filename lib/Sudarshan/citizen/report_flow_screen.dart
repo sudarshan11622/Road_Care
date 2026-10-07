@@ -19,7 +19,7 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
   int step = 0;
   String? imagePath;
   String problem = 'Pothole';
-  String location = 'Station Road, Ward 4';
+  String location = '';
   String trackingPhone = '';
   final description = TextEditingController();
 
@@ -51,11 +51,7 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
 
   Future<void> next() async {
     if (step < 3) {
-      final requireLocationConfirmation =
-          AppScope.of(context).requireLocationConfirmation;
-      setState(() {
-        step = step == 1 && !requireLocationConfirmation ? 3 : step + 1;
-      });
+      setState(() => step++);
       return;
     }
     final state = AppScope.of(context);
@@ -152,7 +148,7 @@ class _StepFrame extends StatelessWidget {
   final String subtitle;
   final Widget child;
   final String button;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
 
   const _StepFrame({
     required this.title,
@@ -378,7 +374,9 @@ class _LocationStep extends StatefulWidget {
 
 class _LocationStepState extends State<_LocationStep> {
   late final MapController mapController;
+  final TextEditingController _coordinatesController = TextEditingController();
   late LatLng selectedPosition;
+  bool _hasSelectedLocation = false;
 
   static const indiaCenter = LatLng(22.3511, 78.6677);
 
@@ -387,6 +385,17 @@ class _LocationStepState extends State<_LocationStep> {
     super.initState();
     mapController = MapController();
     selectedPosition = _parseLocation(widget.location) ?? indiaCenter;
+    _hasSelectedLocation = _parseLocation(widget.location) != null;
+    if (_hasSelectedLocation) {
+      _coordinatesController.text =
+          '${selectedPosition.latitude}, ${selectedPosition.longitude}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _coordinatesController.dispose();
+    super.dispose();
   }
 
   LatLng? _parseLocation(String value) {
@@ -439,20 +448,52 @@ class _LocationStepState extends State<_LocationStep> {
   }
 
   void _updateSelection(LatLng point) {
-    setState(() => selectedPosition = point);
+    setState(() {
+      selectedPosition = point;
+      _hasSelectedLocation = true;
+      _coordinatesController.text = '${point.latitude.toStringAsFixed(5)}, '
+          '${point.longitude.toStringAsFixed(5)}';
+    });
     widget.onLocationChanged(
       'Selected location: ${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)}',
     );
+  }
+
+  void _selectEnteredCoordinates() {
+    final parts = _coordinatesController.text.split(',');
+    final latitude =
+        parts.length == 2 ? double.tryParse(parts[0].trim()) : null;
+    final longitude =
+        parts.length == 2 ? double.tryParse(parts[1].trim()) : null;
+    if (latitude == null ||
+        longitude == null ||
+        !latitude.isFinite ||
+        !longitude.isFinite ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter valid coordinates as latitude, longitude.'),
+        ),
+      );
+      return;
+    }
+
+    final point = LatLng(latitude, longitude);
+    mapController.move(point, 14);
+    _updateSelection(point);
+    FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
     return _StepFrame(
       title: 'Confirm the location',
-      subtitle:
-          'Tap the map to set the exact place where the issue was noticed.',
+      subtitle: 'Select the exact place where the issue was noticed.',
       button: 'Confirm location',
-      onNext: widget.onNext,
+      onNext: _hasSelectedLocation ? widget.onNext : null,
       child: Column(
         children: [
           Expanded(
@@ -473,20 +514,21 @@ class _LocationStepState extends State<_LocationStep> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.roadcare',
                   ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: selectedPosition,
-                        width: 42,
-                        height: 42,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: AppTheme.blue,
-                          size: 36,
+                  if (_hasSelectedLocation)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: selectedPosition,
+                          width: 42,
+                          height: 42,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: AppTheme.blue,
+                            size: 36,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -505,13 +547,40 @@ class _LocationStepState extends State<_LocationStep> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Lat ${selectedPosition.latitude.toStringAsFixed(5)}, '
-                    'Lng ${selectedPosition.longitude.toStringAsFixed(5)}',
+                    _hasSelectedLocation
+                        ? 'Lat ${selectedPosition.latitude.toStringAsFixed(5)}, '
+                            'Lng ${selectedPosition.longitude.toStringAsFixed(5)}'
+                        : 'Tap the map or use your location to select a point',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _coordinatesController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Coordinates (latitude, longitude)',
+                    hintText: 'e.g. 12.34567, 76.54321',
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _selectEnteredCoordinates(),
+                ),
+              ),
+              IconButton(
+                onPressed: _selectEnteredCoordinates,
+                tooltip: 'Set coordinates',
+                icon: const Icon(Icons.check_circle_outline),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Row(
@@ -528,7 +597,6 @@ class _LocationStepState extends State<_LocationStep> {
                 child: OutlinedButton.icon(
                   onPressed: () {
                     mapController.move(indiaCenter, 5);
-                    _updateSelection(indiaCenter);
                   },
                   icon: const Icon(Icons.center_focus_strong),
                   label: const Text('India view'),

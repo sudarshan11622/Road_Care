@@ -29,8 +29,11 @@ class _CitizenShellState extends State<CitizenShell> {
         body: pages[state.citizenTab],
         bottomNavigationBar: NavigationBar(
           selectedIndex: state.citizenTab,
-          onDestinationSelected: (index) {
+          onDestinationSelected: (index) async {
             state.setCitizenTab(index);
+            if (index == 2) {
+              await state.markCitizenNotificationsRead();
+            }
           },
           destinations: [
             const NavigationDestination(
@@ -43,13 +46,13 @@ class _CitizenShellState extends State<CitizenShell> {
                 label: 'Reports'),
             NavigationDestination(
               icon: Badge(
-                isLabelVisible: state.citizenNotifications.isNotEmpty,
-                label: Text('${state.citizenNotifications.length}'),
+                isLabelVisible: state.citizenUnreadNotificationCount > 0,
+                label: Text('${state.citizenUnreadNotificationCount}'),
                 child: const Icon(Icons.notifications_none),
               ),
               selectedIcon: Badge(
-                isLabelVisible: state.citizenNotifications.isNotEmpty,
-                label: Text('${state.citizenNotifications.length}'),
+                isLabelVisible: state.citizenUnreadNotificationCount > 0,
+                label: Text('${state.citizenUnreadNotificationCount}'),
                 child: const Icon(Icons.notifications),
               ),
               label: 'Alerts',

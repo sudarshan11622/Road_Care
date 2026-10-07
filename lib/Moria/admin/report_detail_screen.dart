@@ -49,6 +49,9 @@ class ReportDetailScreen extends StatelessWidget {
               _Info('Tracking status', current.trackabilityLabel),
               _Info('Assigned team', current.assignedTeam),
               _Info('Description', current.description),
+              if (current.status == ReportStatus.rejected &&
+                  current.rejectionReason != null)
+                _Info('Rejection reason', current.rejectionReason!),
               const SizedBox(height: 12),
               const Text('Assign to team',
                   style: TextStyle(fontWeight: FontWeight.w800)),
@@ -80,16 +83,87 @@ class ReportDetailScreen extends StatelessWidget {
                 items: ReportStatus.values.map((s) {
                   return DropdownMenuItem(value: s, child: Text(s.label));
                 }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    state.updateReportStatus(current.id, value);
+                onChanged: (value) async {
+                  if (value == null) return;
+                  if (value == ReportStatus.rejected) {
+                    final reason = await _requestRejectionReason(context);
+                    if (reason == null) return;
+                    await state.updateReportStatus(
+                      current.id,
+                      value,
+                      rejectionReason: reason,
+                    );
+                    return;
                   }
+                  await state.updateReportStatus(current.id, value);
                 },
               ),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+Future<String?> _requestRejectionReason(BuildContext context) async {
+  return showDialog<String>(
+    context: context,
+    builder: (_) => const _RejectionReasonDialog(),
+  );
+}
+
+class _RejectionReasonDialog extends StatefulWidget {
+  const _RejectionReasonDialog();
+
+  @override
+  State<_RejectionReasonDialog> createState() => _RejectionReasonDialogState();
+}
+
+class _RejectionReasonDialogState extends State<_RejectionReasonDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Reject report'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Reason for rejection',
+            hintText: 'Explain why this report cannot be accepted',
+          ),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Enter a reason before rejecting'
+              : null,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          child: const Text('Save reason'),
+        ),
+      ],
     );
   }
 }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:roadcare/app.dart';
 import 'package:roadcare/models/report.dart';
+import 'package:roadcare/state/app_state.dart';
+import 'package:roadcare/Moria/admin/report_detail_screen.dart';
 
 class _TestHttpOverrides extends HttpOverrides {
   @override
@@ -102,6 +105,123 @@ void main() {
     expect(find.text('Gallery'), findsOneWidget);
   });
 
+  testWidgets('citizen can open a report from the reports section',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'citizenLoggedIn': true,
+      'phone': '9876543210',
+    });
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reports'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pothole near Main Road'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RC-1048'), findsOneWidget);
+    expect(find.text('Station Road, Ward 4'), findsOneWidget);
+    expect(find.text('Large pothole causing difficulty for two-wheelers.'),
+        findsOneWidget);
+  });
+
+  testWidgets('citizen can open a report from its notification',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'citizenLoggedIn': true,
+      'phone': '9876543210',
+      'notifications': jsonEncode([
+        {
+          'reportId': 'RC-1048',
+          'phone': '9876543210',
+          'title': 'Report resolved',
+          'body': 'The problem you reported has been resolved.',
+          'createdAt': DateTime(2026, 10, 7).toIso8601String(),
+        },
+      ]),
+    });
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widgetList<Badge>(find.byType(Badge))
+          .where((badge) => badge.isLabelVisible),
+      hasLength(1),
+    );
+    await tester.tap(find.text('Alerts'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widgetList<Badge>(find.byType(Badge))
+          .where((badge) => badge.isLabelVisible),
+      isEmpty,
+    );
+    await tester.tap(find.text('Report resolved'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RC-1048'), findsOneWidget);
+    expect(find.text('Station Road, Ward 4'), findsOneWidget);
+    expect(find.text('Large pothole causing difficulty for two-wheelers.'),
+        findsOneWidget);
+  });
+
+  testWidgets('admin can enter and save a rejection reason with keyboard open',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(390, 640));
+    final state = AppState();
+    await state.load();
+    addTearDown(state.dispose);
+    addTearDown(() async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+    });
+
+    await tester.pumpWidget(
+      AppScope(
+        state: state,
+        child: MaterialApp(
+          home: ReportDetailScreen(report: state.reports.first),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -480));
+    await tester.pumpAndSettle();
+    expect(find.text('Update status'), findsOneWidget);
+    await tester.tap(find.byType(DropdownButtonFormField<ReportStatus>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rejected').last);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).last,
+      'This report is outside the service area.',
+    );
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Save reason'));
+    await tester.tap(find.text('Save reason'));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.text('This report is outside the service area.'), findsOneWidget);
+    expect(state.reports.first.status, ReportStatus.rejected);
+    expect(
+      state.reports.first.rejectionReason,
+      'This report is outside the service area.',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('phone sign-in form scrolls above the on-screen keyboard',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -110,6 +230,7 @@ void main() {
       FocusManager.instance.primaryFocus?.unfocus();
       tester.view.viewInsets = const FakeViewPadding();
       await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(390, 844));
     });
 
     await tester.pumpWidget(const RoadCareApp());
@@ -127,6 +248,39 @@ void main() {
     await tester.ensureVisible(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Next'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('OTP screen scrolls above the on-screen keyboard',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(390, 640));
+    addTearDown(() async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+    });
+
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sign In').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, '9876543210');
+    await tester.ensureVisible(find.text('Next'));
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, '1234');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text('Verify & continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verify & continue'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -149,12 +303,33 @@ void main() {
     expect(find.text('Use my location'), findsOneWidget);
   });
 
+  testWidgets('requires selecting an exact map location before confirmation',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Report a problem'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    final confirmButton = find.widgetWithText(FilledButton, 'Confirm location');
+    expect(tester.widget<FilledButton>(confirmButton).onPressed, isNull);
+
+    await _setReportCoordinates(tester);
+
+    expect(tester.widget<FilledButton>(confirmButton).onPressed, isNotNull);
+  });
+
   testWidgets('signed-in user lands on reports after submitting a report',
       (tester) async {
     SharedPreferences.setMockInitialValues({
       'citizenLoggedIn': true,
       'phone': '9876543210',
-      'requireLocationConfirmation': true,
     });
     await tester.pumpWidget(const RoadCareApp());
     await tester.pump(const Duration(seconds: 2));
@@ -167,6 +342,7 @@ void main() {
     await tester.tap(find.text('Drainage'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
+    await _setReportCoordinates(tester);
     await tester.tap(find.text('Confirm location'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Submit report'));
@@ -196,6 +372,7 @@ void main() {
     await tester.tap(find.text('Drainage'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
+    await _setReportCoordinates(tester);
     await tester.tap(find.text('Confirm location'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Submit report'));
@@ -241,6 +418,37 @@ void main() {
     );
   });
 
+  testWidgets('profile hides location access and admin settings has dark mode',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'citizenLoggedIn': true,
+      'phone': '9876543210',
+    });
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Location access'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    SharedPreferences.setMockInitialValues({'adminLoggedIn': true});
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dark mode'), findsOneWidget);
+    final darkModeSwitch = find.byType(Switch);
+    expect(tester.widget<Switch>(darkModeSwitch).value, isFalse);
+    await tester.tap(darkModeSwitch);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Switch>(darkModeSwitch).value, isTrue);
+  });
+
   test('marks reports as trackable or non-trackable based on logged-in status',
       () {
     final trackable = Report(
@@ -271,4 +479,17 @@ void main() {
     expect(trackable.isTrackable, isTrue);
     expect(nonTrackable.isTrackable, isFalse);
   });
+}
+
+Future<void> _setReportCoordinates(WidgetTester tester) async {
+  await tester.enterText(
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Coordinates (latitude, longitude)',
+    ),
+    '12.34567, 76.54321',
+  );
+  await tester.tap(find.byTooltip('Set coordinates'));
+  await tester.pumpAndSettle();
 }

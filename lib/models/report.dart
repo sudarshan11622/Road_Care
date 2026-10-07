@@ -78,6 +78,7 @@ class Report {
   final String citizenPhone;
   final String assignedTeam;
   final bool isTrackable;
+  final String? rejectionReason;
 
   const Report({
     required this.id,
@@ -92,6 +93,7 @@ class Report {
     this.citizenPhone = '',
     this.assignedTeam = 'Unassigned',
     this.isTrackable = false,
+    this.rejectionReason,
   });
 
   String get trackabilityLabel => isTrackable ? 'Trackable' : 'Non-trackable';
@@ -113,6 +115,7 @@ class Report {
       citizenPhone: json['citizenPhone'] as String? ?? '',
       assignedTeam: json['assignedTeam'] as String? ?? 'Unassigned',
       isTrackable: json['isTrackable'] as bool? ?? false,
+      rejectionReason: json['rejectionReason'] as String?,
     );
   }
 
@@ -129,6 +132,7 @@ class Report {
         'citizenPhone': citizenPhone,
         'assignedTeam': assignedTeam,
         'isTrackable': isTrackable,
+        'rejectionReason': rejectionReason,
       };
 
   Report copyWith({
@@ -137,6 +141,7 @@ class Report {
     String? citizenPhone,
     String? assignedTeam,
     bool? isTrackable,
+    String? rejectionReason,
   }) {
     return Report(
       id: id,
@@ -151,6 +156,7 @@ class Report {
       citizenPhone: citizenPhone ?? this.citizenPhone,
       assignedTeam: assignedTeam ?? this.assignedTeam,
       isTrackable: isTrackable ?? this.isTrackable,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 }
