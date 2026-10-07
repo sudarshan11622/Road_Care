@@ -1,0 +1,48 @@
+name: roadcare
+description: A clean Flutter implementation of the RoadCare citizen reporting and administration UI.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_map: ^7.0.2
+  geolocator: ^14.0.1
+  image_picker: ^1.1.2
+  latlong2: ^0.9.1
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/demo_road.jpg
+    - assets/images/roadcare_logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/roadcare_logo.png
+  remove_alpha_ios: true
+  adaptive_icon_background: "#0A58E8"
+  adaptive_icon_foreground: assets/images/roadcare_logo.png
+  web:
+    generate: true
+    image_path: assets/images/roadcare_logo.png
+    background_color: "#0A58E8"
+    theme_color: "#0A58E8"
+  windows:
+    generate: true
+    image_path: assets/images/roadcare_logo.png
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: assets/images/roadcare_logo.png
