@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
-import 'citizen/report_flow_screen.dart';
+import '../Sudarshan/citizen/report_flow_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -76,16 +76,6 @@ class WelcomeScreen extends StatelessWidget {
                 child: const Text('Track my reports'),
               ),
               const SizedBox(height: 28),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/demo_road.jpg',
-                  height: 165,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 12),
               const SectionTitle(title: 'What you can report'),
               const SizedBox(height: 10),
               const _Feature(

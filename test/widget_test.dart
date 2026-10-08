@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:roadcare/app.dart';
@@ -103,6 +104,33 @@ void main() {
 
     expect(find.text('Take photo'), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
+  });
+
+  testWidgets('requires a photo, category, and problem details',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Report a problem'));
+    await tester.pumpAndSettle();
+
+    final continueButton = find.widgetWithText(FilledButton, 'Continue');
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+    await _addReportPhoto(tester);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
+    await tester.tap(continueButton);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+    await tester.tap(find.text('Pothole'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField).last, 'A deep pothole.');
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
   });
 
   testWidgets('citizen can open a report from the reports section',
@@ -293,12 +321,7 @@ void main() {
 
     await tester.tap(find.text('Report a problem'));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    await _advanceToLocationStep(tester);
 
     expect(find.text('Use my location'), findsOneWidget);
   });
@@ -312,10 +335,7 @@ void main() {
 
     await tester.tap(find.text('Report a problem'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    await _advanceToLocationStep(tester);
 
     final confirmButton = find.widgetWithText(FilledButton, 'Confirm location');
     expect(tester.widget<FilledButton>(confirmButton).onPressed, isNull);
@@ -337,11 +357,7 @@ void main() {
 
     await tester.tap(find.text('Report a problem'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Drainage'));
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    await _advanceToLocationStep(tester, category: 'Drainage');
     await _setReportCoordinates(tester);
     await tester.tap(find.text('Confirm location'));
     await tester.pumpAndSettle();
@@ -367,11 +383,7 @@ void main() {
 
     await tester.tap(find.text('Report a problem'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Drainage'));
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    await _advanceToLocationStep(tester, category: 'Drainage');
     await _setReportCoordinates(tester);
     await tester.tap(find.text('Confirm location'));
     await tester.pumpAndSettle();
@@ -479,6 +491,39 @@ void main() {
     expect(trackable.isTrackable, isTrue);
     expect(nonTrackable.isTrackable, isFalse);
   });
+}
+
+const _imagePickerChannel = MethodChannel('plugins.flutter.io/image_picker');
+
+Future<void> _addReportPhoto(WidgetTester tester) async {
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(
+    _imagePickerChannel,
+    (call) async => '${Directory.current.path}\\assets\\images\\demo_road.jpg',
+  );
+  addTearDown(() => messenger.setMockMethodCallHandler(
+        _imagePickerChannel,
+        null,
+      ));
+  await tester.tap(find.text('Gallery'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _advanceToLocationStep(
+  WidgetTester tester, {
+  String category = 'Pothole',
+}) async {
+  await _addReportPhoto(tester);
+  await tester.tap(find.text('Continue'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(category));
+  await tester.enterText(find.byType(TextField).last, 'A road hazard.');
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.text('Continue'));
+  await tester.tap(find.text('Continue'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _setReportCoordinates(WidgetTester tester) async {

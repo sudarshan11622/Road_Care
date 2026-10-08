@@ -4,9 +4,9 @@ import 'theme/app_theme.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/auth/phone_login_screen.dart';
 import 'screens/auth/otp_screen.dart';
-import 'screens/citizen/citizen_shell.dart';
-import 'screens/admin/admin_login_screen.dart';
-import 'screens/admin/admin_shell.dart';
+import 'Sudarshan/citizen/citizen_shell.dart';
+import 'Moria/admin/admin_login_screen.dart';
+import 'Moria/admin/admin_shell.dart';
 
 class RoadCareApp extends StatefulWidget {
   const RoadCareApp({super.key});

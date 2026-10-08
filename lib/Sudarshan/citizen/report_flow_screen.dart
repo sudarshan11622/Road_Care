@@ -18,7 +18,7 @@ class ReportFlowScreen extends StatefulWidget {
 class _ReportFlowScreenState extends State<ReportFlowScreen> {
   int step = 0;
   String? imagePath;
-  String problem = 'Pothole';
+  String? problem;
   String location = '';
   String trackingPhone = '';
   final description = TextEditingController();
@@ -51,18 +51,37 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
 
   Future<void> next() async {
     if (step < 3) {
+      if (step == 0 && imagePath == null) return;
+      if (step == 1 &&
+          (problem == null || description.text.trim().isEmpty)) {
+        return;
+      }
       setState(() => step++);
       return;
     }
+
+    final selectedProblem = problem;
+    final details = description.text.trim();
+    if (imagePath == null || selectedProblem == null || details.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add a photo, choose a category, and describe the problem.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final state = AppScope.of(context);
     await state.addReport(
       title:
-          problem == 'Pothole' ? 'Pothole near Main Road' : '$problem reported',
-      type: problem,
+          selectedProblem == 'Pothole'
+              ? 'Pothole near Main Road'
+              : '$selectedProblem reported',
+      type: selectedProblem,
       location: location,
-      description: description.text.trim().isEmpty
-          ? 'Reported through RoadCare.'
-          : description.text.trim(),
+      description: details,
       imagePath: imagePath,
       phoneNumber: trackingPhone.trim().isEmpty ? null : trackingPhone,
     );
@@ -120,6 +139,7 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
           problems: problems,
           onSelected: (v) => setState(() => problem = v),
           description: description,
+          onDescriptionChanged: (_) => setState(() {}),
           onNext: next,
         );
       case 2:
@@ -130,7 +150,7 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
         );
       default:
         return _ReviewStep(
-          problem: problem,
+          problem: problem ?? '',
           location: location,
           imagePath: imagePath,
           description: description.text,
@@ -195,9 +215,9 @@ class _PhotoStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepFrame(
       title: 'Add a photo',
-      subtitle: 'A clear photo helps the road team understand the problem.',
+      subtitle: 'A clear photo is required to report the problem.',
       button: 'Continue',
-      onNext: onNext,
+      onNext: imagePath == null ? null : onNext,
       child: Column(
         children: [
           Expanded(
@@ -265,7 +285,7 @@ class _PhotoStep extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(top: 12),
               child: Text(
-                'Photo is recommended, but not required.',
+                'Add a photo to continue.',
                 style: TextStyle(fontSize: 12, color: AppTheme.muted),
               ),
             ),
@@ -276,10 +296,11 @@ class _PhotoStep extends StatelessWidget {
 }
 
 class _ProblemStep extends StatelessWidget {
-  final String selected;
+  final String? selected;
   final List<(String, IconData)> problems;
   final ValueChanged<String> onSelected;
   final TextEditingController description;
+  final ValueChanged<String> onDescriptionChanged;
   final VoidCallback onNext;
 
   const _ProblemStep({
@@ -287,6 +308,7 @@ class _ProblemStep extends StatelessWidget {
     required this.problems,
     required this.onSelected,
     required this.description,
+    required this.onDescriptionChanged,
     required this.onNext,
   });
 
@@ -294,9 +316,11 @@ class _ProblemStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepFrame(
       title: 'What’s the problem?',
-      subtitle: 'Choose the category that best describes the issue.',
+      subtitle: 'Choose a category and describe the problem to continue.',
       button: 'Continue',
-      onNext: onNext,
+      onNext: selected != null && description.text.trim().isNotEmpty
+          ? onNext
+          : null,
       child: Column(
         children: [
           Expanded(
@@ -346,8 +370,9 @@ class _ProblemStep extends StatelessWidget {
           TextField(
             controller: description,
             maxLines: 2,
+            onChanged: onDescriptionChanged,
             decoration: const InputDecoration(
-              labelText: 'Additional details (optional)',
+              labelText: 'Problem details (required)',
               hintText: 'Tell us what you noticed...',
             ),
           ),
