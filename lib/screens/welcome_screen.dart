@@ -15,20 +15,36 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 30),
+          padding:
+              EdgeInsets.fromLTRB(horizontalPadding, 20, horizontalPadding, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 8,
                 children: [
-                  const RoadCareLogo(),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/admin-login');
-                    },
-                    child: const Text('Admin'),
+                  RoadCareLogo(
+                    markSize: isCompactPhone ? 30 : 36,
+                    fontSize: isCompactPhone ? 16 : 18,
                   ),
+                  if (isCompactPhone)
+                    IconButton(
+                      tooltip: 'Admin',
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 40, height: 40),
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/admin-login'),
+                      icon: const Icon(Icons.admin_panel_settings_outlined),
+                    )
+                  else
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/admin-login'),
+                      child: const Text('Admin'),
+                    ),
                 ],
               ),
               SizedBox(height: isCompactPhone ? 28 : 54),
@@ -139,7 +155,8 @@ class _Feature extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,

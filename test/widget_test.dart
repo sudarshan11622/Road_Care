@@ -76,20 +76,21 @@ void main() {
 
     expect(find.textContaining('RoadCare'), findsWidgets);
     expect(find.text('Report a problem'), findsOneWidget);
-    expect(find.text('Sign In'), findsWidgets);
-    expect(find.text('Already submitted a report? Sign in'), findsOneWidget);
+    expect(find.text('Track my reports'), findsOneWidget);
   });
 
-  testWidgets('uses a responsive layout on narrow mobile screens',
-      (tester) async {
+  testWidgets('welcome screen fits a narrow mobile screen', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(const RoadCareApp());
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    expect(find.byType(LayoutBuilder), findsWidgets);
+    expect(find.text('Report a problem'), findsOneWidget);
+    expect(find.text('Track my reports'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('report flow offers camera and gallery photo options',
@@ -150,6 +151,8 @@ void main() {
 
     expect(find.text('RC-1048'), findsOneWidget);
     expect(find.text('Station Road, Ward 4'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.text('Large pothole causing difficulty for two-wheelers.'),
         findsOneWidget);
   });
@@ -192,6 +195,8 @@ void main() {
 
     expect(find.text('RC-1048'), findsOneWidget);
     expect(find.text('Station Road, Ward 4'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.text('Large pothole causing difficulty for two-wheelers.'),
         findsOneWidget);
   });
@@ -265,7 +270,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Sign In').first);
+    await tester.tap(find.text('Track my reports'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '9876543210');
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
@@ -294,7 +299,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Sign In').first);
+    await tester.tap(find.text('Track my reports'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '9876543210');
     await tester.ensureVisible(find.text('Next'));
@@ -343,6 +348,38 @@ void main() {
     await _setReportCoordinates(tester);
 
     expect(tester.widget<FilledButton>(confirmButton).onPressed, isNotNull);
+  });
+
+  testWidgets('location step avoids bottom overflow when keyboard is open',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(390, 640));
+    addTearDown(() async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.viewInsets = const FakeViewPadding();
+      await tester.pumpAndSettle();
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+    });
+
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Report a problem'));
+    await tester.pumpAndSettle();
+    await _advanceToLocationStep(tester);
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Coordinates (latitude, longitude)',
+      ),
+      '12.34567, 76.54321',
+    );
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('signed-in user lands on reports after submitting a report',
@@ -428,6 +465,33 @@ void main() {
       preferences.getString('citizenAddress_9876543210'),
       '12 Main Road, Ward 4',
     );
+  });
+
+  testWidgets('citizen can enable or disable report notifications',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'citizenLoggedIn': true,
+      'phone': '9876543210',
+    });
+    await tester.pumpWidget(const RoadCareApp());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile').last);
+    await tester.pumpAndSettle();
+
+    final notificationSwitch = find.descendant(
+      of: find.widgetWithText(ListTile, 'Notifications'),
+      matching: find.byType(Switch),
+    );
+    expect(tester.widget<Switch>(notificationSwitch).value, isTrue);
+    await tester.tap(notificationSwitch);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Switch>(notificationSwitch).value, isFalse);
+    final preferences = await SharedPreferences.getInstance();
+    expect(
+        preferences.getBool('citizenNotificationsEnabled_9876543210'), isFalse);
   });
 
   testWidgets('profile hides location access and admin settings has dark mode',

@@ -52,8 +52,7 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
   Future<void> next() async {
     if (step < 3) {
       if (step == 0 && imagePath == null) return;
-      if (step == 1 &&
-          (problem == null || description.text.trim().isEmpty)) {
+      if (step == 1 && (problem == null || description.text.trim().isEmpty)) {
         return;
       }
       setState(() => step++);
@@ -75,10 +74,9 @@ class _ReportFlowScreenState extends State<ReportFlowScreen> {
 
     final state = AppScope.of(context);
     await state.addReport(
-      title:
-          selectedProblem == 'Pothole'
-              ? 'Pothole near Main Road'
-              : '$selectedProblem reported',
+      title: selectedProblem == 'Pothole'
+          ? 'Pothole near Main Road'
+          : '$selectedProblem reported',
       type: selectedProblem,
       location: location,
       description: details,
@@ -169,6 +167,7 @@ class _StepFrame extends StatelessWidget {
   final Widget child;
   final String button;
   final VoidCallback? onNext;
+  final bool scrollWithKeyboard;
 
   const _StepFrame({
     required this.title,
@@ -176,10 +175,37 @@ class _StepFrame extends StatelessWidget {
     required this.child,
     required this.button,
     required this.onNext,
+    this.scrollWithKeyboard = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen =
+        scrollWithKeyboard && MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (keyboardOpen) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(18, 25, 18, 20),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 25, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 7),
+              Text(subtitle,
+                  style: const TextStyle(color: AppTheme.muted, height: 1.4)),
+              const SizedBox(height: 20),
+              child,
+              const SizedBox(height: 20),
+              PrimaryButton(label: button, onPressed: onNext),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 25, 18, 20),
       child: Column(
@@ -519,45 +545,47 @@ class _LocationStepState extends State<_LocationStep> {
       subtitle: 'Select the exact place where the issue was noticed.',
       button: 'Confirm location',
       onNext: _hasSelectedLocation ? widget.onNext : null,
+      scrollWithKeyboard: true,
       child: Column(
         children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: FlutterMap(
-                mapController: mapController,
-                options: MapOptions(
-                  initialCenter: selectedPosition,
-                  initialZoom: 14,
-                  minZoom: 9,
-                  maxZoom: 18,
-                  onTap: (_, point) => _updateSelection(point),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.roadcare',
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: FlutterMap(
+                  mapController: mapController,
+                  options: MapOptions(
+                    initialCenter: selectedPosition,
+                    initialZoom: 14,
+                    minZoom: 9,
+                    maxZoom: 18,
+                    onTap: (_, point) => _updateSelection(point),
                   ),
-                  if (_hasSelectedLocation)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: selectedPosition,
-                          width: 42,
-                          height: 42,
-                          child: const Icon(
-                            Icons.location_on,
-                            color: AppTheme.blue,
-                            size: 36,
-                          ),
-                        ),
-                      ],
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.roadcare',
                     ),
-                ],
+                    if (_hasSelectedLocation)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: selectedPosition,
+                            width: 42,
+                            height: 42,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: AppTheme.blue,
+                              size: 36,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),

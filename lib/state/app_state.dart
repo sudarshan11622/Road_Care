@@ -11,6 +11,7 @@ class AppState extends ChangeNotifier {
   bool citizenLoggedIn = false;
   bool adminLoggedIn = false;
   bool isDarkMode = false;
+  bool citizenNotificationsEnabled = true;
   String organizationName = 'RoadCare Municipal Services';
   String serviceArea = 'Central District';
   String citizenName = 'RoadCare Citizen';
@@ -127,6 +128,8 @@ class AppState extends ChangeNotifier {
         _prefs?.getString('organizationName') ?? 'RoadCare Municipal Services';
     serviceArea = _prefs?.getString('serviceArea') ?? 'Central District';
     phone = _prefs?.getString('phone') ?? '';
+    citizenNotificationsEnabled =
+        _prefs?.getBool('citizenNotificationsEnabled_$phone') ?? true;
     citizenName = _prefs?.getString('citizenName_$phone') ?? 'RoadCare Citizen';
     citizenEmail = _prefs?.getString('citizenEmail_$phone') ?? '';
     citizenAddress = _prefs?.getString('citizenAddress_$phone') ?? '';
@@ -186,6 +189,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setCitizenNotificationsEnabled(bool value) async {
+    citizenNotificationsEnabled = value;
+    if (phone.isNotEmpty) {
+      await _prefs?.setBool('citizenNotificationsEnabled_$phone', value);
+    }
+    notifyListeners();
+  }
+
   Future<void> saveAdminSettings({
     required String organizationName,
     required String serviceArea,
@@ -214,6 +225,8 @@ class AppState extends ChangeNotifier {
   Future<void> loginCitizen(String value) async {
     phone = value.replaceAll(RegExp(r'\D'), '');
     citizenLoggedIn = true;
+    citizenNotificationsEnabled =
+        _prefs?.getBool('citizenNotificationsEnabled_$phone') ?? true;
     citizenName = _prefs?.getString('citizenName_$phone') ?? 'RoadCare Citizen';
     citizenEmail = _prefs?.getString('citizenEmail_$phone') ?? '';
     citizenAddress = _prefs?.getString('citizenAddress_$phone') ?? '';
@@ -249,6 +262,7 @@ class AppState extends ChangeNotifier {
     citizenAddress = address.trim();
     if (removeProfileImage) {
       citizenProfileImage = null;
+      citizenNotificationsEnabled = true;
     } else if (profileImage != null) {
       citizenProfileImage = profileImage;
     }
@@ -402,6 +416,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _addReportNotification(Report report, ReportStatus status) {
+    if (!citizenNotificationsEnabled) return;
     notifications.add(
       AppNotification(
         reportId: report.id,

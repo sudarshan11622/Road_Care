@@ -149,93 +149,98 @@ class ProfileScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) => SafeArea(
         child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 25),
-        children: [
-          const Text('Profile',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 5),
-          const Text('Manage your RoadCare account.',
-              style: TextStyle(color: AppTheme.muted)),
-          const SizedBox(height: 18),
-          Card(
-            child: ListTile(
-              leading: _ProfileAvatar(
-                imageData: state.citizenProfileImage,
-                radius: 24,
-              ),
-              title: Text(state.citizenName,
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(state.phone.isEmpty
-                  ? 'Citizen account'
-                  : '+91 ${state.phone}'),
-              trailing: IconButton(
-                tooltip: 'Edit profile',
-                onPressed: () => _editProfile(context, state),
-                icon: const Icon(Icons.edit_outlined),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 25),
+          children: [
+            const Text('Profile',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            const Text('Manage your RoadCare account.',
+                style: TextStyle(color: AppTheme.muted)),
+            const SizedBox(height: 18),
+            Card(
+              child: ListTile(
+                leading: _ProfileAvatar(
+                  imageData: state.citizenProfileImage,
+                  radius: 24,
+                ),
+                title: Text(state.citizenName,
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(state.phone.isEmpty
+                    ? 'Citizen account'
+                    : '+91 ${state.phone}'),
+                trailing: IconButton(
+                  tooltip: 'Edit profile',
+                  onPressed: () => _editProfile(context, state),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
               ),
             ),
-          ),
-          if (state.citizenEmail.isNotEmpty || state.citizenAddress.isNotEmpty)
+            if (state.citizenEmail.isNotEmpty ||
+                state.citizenAddress.isNotEmpty)
+              Card(
+                child: Column(
+                  children: [
+                    if (state.citizenEmail.isNotEmpty)
+                      ListTile(
+                        leading: const Icon(Icons.email_outlined),
+                        title: const Text('Email'),
+                        subtitle: Text(state.citizenEmail),
+                      ),
+                    if (state.citizenAddress.isNotEmpty)
+                      ListTile(
+                        leading: const Icon(Icons.location_on_outlined),
+                        title: const Text('Address'),
+                        subtitle: Text(state.citizenAddress),
+                      ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 10),
             Card(
               child: Column(
                 children: [
-                  if (state.citizenEmail.isNotEmpty)
-                    ListTile(
-                      leading: const Icon(Icons.email_outlined),
-                      title: const Text('Email'),
-                      subtitle: Text(state.citizenEmail),
+                  ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: const Text('Personal information'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _editProfile(context, state),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_none),
+                    title: const Text('Notifications'),
+                    subtitle: const Text('Report status updates'),
+                    trailing: Switch(
+                      value: state.citizenNotificationsEnabled,
+                      onChanged: state.setCitizenNotificationsEnabled,
                     ),
-                  if (state.citizenAddress.isNotEmpty)
-                    ListTile(
-                      leading: const Icon(Icons.location_on_outlined),
-                      title: const Text('Address'),
-                      subtitle: Text(state.citizenAddress),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.dark_mode_outlined),
+                    title: const Text('Dark mode'),
+                    trailing: Switch(
+                      value: state.isDarkMode,
+                      onChanged: (value) async {
+                        await state.setDarkMode(value);
+                      },
                     ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: AppTheme.red),
+                    title: const Text('Log out',
+                        style: TextStyle(color: AppTheme.red)),
+                    onTap: () async {
+                      await state.logoutCitizen();
+                      if (context.mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/welcome', (_) => false);
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
-          const SizedBox(height: 10),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('Personal information'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _editProfile(context, state),
-                ),
-                const ListTile(
-                  leading: Icon(Icons.notifications_none),
-                  title: Text('Notifications'),
-                  trailing: Switch(value: true, onChanged: null),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.dark_mode_outlined),
-                  title: const Text('Dark mode'),
-                  trailing: Switch(
-                    value: state.isDarkMode,
-                    onChanged: (value) async {
-                      await state.setDarkMode(value);
-                    },
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: AppTheme.red),
-                  title: const Text('Log out',
-                      style: TextStyle(color: AppTheme.red)),
-                  onTap: () async {
-                    await state.logoutCitizen();
-                    if (context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                          context, '/welcome', (_) => false);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

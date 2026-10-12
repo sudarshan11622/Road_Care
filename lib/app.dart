@@ -46,8 +46,8 @@ class _RoadCareAppState extends State<RoadCareApp> {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'RoadCare',
-            theme: AppTheme.light.copyWith(useMaterial3: true),
-            darkTheme: AppTheme.darkTheme.copyWith(useMaterial3: true),
+            theme: AppTheme.light,
+            darkTheme: AppTheme.darkTheme,
             themeMode: session.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             builder: (context, child) {
               final media = MediaQuery.of(context);

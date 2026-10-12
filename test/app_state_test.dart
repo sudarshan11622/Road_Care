@@ -65,6 +65,49 @@ void main() {
       expect(state.isDarkMode, isFalse);
     });
 
+    test('persists citizen notification preference and controls report alerts',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+
+      final state = AppState();
+      await state.load();
+      await state.loginCitizen('9876543210');
+      await state.setCitizenNotificationsEnabled(false);
+      await state.addReport(
+        title: 'First problem',
+        type: 'Pothole',
+        location: 'North Road',
+        description: 'Needs repair.',
+      );
+      await state.updateReportStatus(
+        state.reports.first.id,
+        ReportStatus.resolved,
+      );
+
+      expect(state.citizenNotificationsEnabled, isFalse);
+      expect(state.citizenNotifications, isEmpty);
+
+      final restored = AppState();
+      await restored.load();
+      await restored.loginCitizen('9876543210');
+      expect(restored.citizenNotificationsEnabled, isFalse);
+
+      await restored.setCitizenNotificationsEnabled(true);
+      await restored.addReport(
+        title: 'Second problem',
+        type: 'Drainage',
+        location: 'South Road',
+        description: 'Drain cover is missing.',
+      );
+      await restored.updateReportStatus(
+        restored.reports.first.id,
+        ReportStatus.resolved,
+      );
+
+      expect(restored.citizenNotificationsEnabled, isTrue);
+      expect(restored.citizenNotifications, hasLength(1));
+    });
+
     test('restores only terminal status notifications', () async {
       SharedPreferences.setMockInitialValues({
         'notifications': jsonEncode([
